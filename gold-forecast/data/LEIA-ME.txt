@@ -1,0 +1,1 @@
+Este gold_price.csv é SINTÉTICO e serve apenas para testar a execução. Substitua pelo CSV real do dataset escolhido antes de produzir resultados para a entrega.
