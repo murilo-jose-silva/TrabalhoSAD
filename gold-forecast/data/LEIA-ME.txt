@@ -1,1 +1,3 @@
 Este gold_price.csv é SINTÉTICO e serve apenas para testar a execução. Substitua pelo CSV real do dataset escolhido antes de produzir resultados para a entrega.
+
+Abordagem do modelo: o pipeline usa somente o Random Forest e prevê a VARIAÇÃO (retorno) do próximo dia, reconstruindo o preço a seguir (preço_amanhã = preço_hoje x (1 + variação)). Isso evita o problema de extrapolação dos modelos de árvore em séries com tendência. As métricas (MAE, MSE, RMSE, R²) são calculadas na escala de preço e comparadas com um baseline ingênuo (repetir o último preço). O train_model.py e o notebook gold_forecast.ipynb usam exatamente a mesma abordagem.

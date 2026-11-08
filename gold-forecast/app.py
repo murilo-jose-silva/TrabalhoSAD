@@ -19,6 +19,11 @@ st.caption("Sistema acadêmico de previsão do preço do ouro com Machine Learni
 
 ARQUIVO_MODELO = Path("models/gold_forecast_bundle.joblib")
 
+# Limites de horizonte: previsoes muito longas perdem confiabilidade porque o
+# erro se acumula (previsao recursiva) e modelos de arvore nao extrapolam.
+HORIZONTE_MAX = 30     # maximo de dias uteis permitido (~1,5 mes de pregoes)
+HORIZONTE_ALERTA = 15  # a partir daqui, avisa que a confianca cai
+
 @st.cache_resource
 def carregar_bundle():
     return joblib.load(ARQUIVO_MODELO)
@@ -37,15 +42,23 @@ with st.sidebar:
     st.header("Configurações")
 
     horizonte = st.number_input(
-        "Observações futuras (limitado a 3650)",
+        f"Observações futuras (dias úteis, máximo {HORIZONTE_MAX})",
         min_value=1,
-        max_value=3650,
+        max_value=HORIZONTE_MAX,
         value=7,
         step=1,
         format="%d"
     )
 
     horizonte = int(horizonte)
+
+    # Aviso quando o prazo escolhido se aproxima do limite confiável.
+    if horizonte > HORIZONTE_ALERTA:
+        st.warning(
+            f"Previsões acima de {HORIZONTE_ALERTA} dias úteis são menos "
+            "confiáveis: o erro se acumula a cada passo e o modelo tende a "
+            "estabilizar num patamar."
+        )
 
     st.divider()
 
@@ -90,6 +103,21 @@ fig.add_trace(go.Scatter(
     x=recorte["Date"], y=recorte["Price"],
     mode="lines", name="Preço observado"
 ))
+
+# Faixa de incerteza ilustrativa: parte do RMSE do teste e alarga com a raiz
+# do número de passos à frente. Não é um intervalo de confiança rigoroso,
+# apenas comunica que a incerteza cresce ao longo do horizonte.
+rmse = float(bundle["metrics"]["RMSE"])
+passos = np.arange(1, len(forecast) + 1)
+margem = rmse * np.sqrt(passos)
+fig.add_trace(go.Scatter(
+    x=list(forecast["Date"]) + list(forecast["Date"][::-1]),
+    y=list(forecast["Predicted_Price"] + margem)
+      + list((forecast["Predicted_Price"] - margem)[::-1]),
+    fill="toself", fillcolor="rgba(255,165,0,0.15)",
+    line=dict(width=0), name="Faixa de incerteza", hoverinfo="skip"
+))
+
 fig.add_trace(go.Scatter(
     x=forecast["Date"], y=forecast["Predicted_Price"],
     mode="lines+markers", name="Previsão",
