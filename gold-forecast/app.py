@@ -166,7 +166,7 @@ with col_dir:
         "O baseline repete o último preço conhecido."
     )
 
-st.subheader("Comparação dos modelos na validação temporal")
+st.subheader("Comparação das configurações do Random Forest na validação temporal")
 cv = bundle["cv_results"].copy()
 st.dataframe(cv.round(4), use_container_width=True, hide_index=True)
 
