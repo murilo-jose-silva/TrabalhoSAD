@@ -13,7 +13,7 @@ Este ZIP contém o código, o notebook Colab, o dashboard Streamlit e um CSV de 
 
 ```powershell
 py -m venv .venv
-.venv\\Scripts\\Activate.ps1
+.venv\Scripts\Activate.ps1
 ```
 
 5. Instale as bibliotecas:
@@ -35,6 +35,8 @@ python train_model.py --csv data/gold_price.csv
 streamlit run app.py
 ```
 
+> Se o comando `streamlit` não for reconhecido no Windows, rode `python -m streamlit run app.py`.
+
 O Streamlit abrirá no navegador, normalmente em http://localhost:8501.
 
 ## 2. Testar no Google Colab
@@ -45,7 +47,7 @@ O Streamlit abrirá no navegador, normalmente em http://localhost:8501.
 4. Confira os nomes das colunas e ajuste `COLUNA_DATA` e `COLUNA_PRECO`.
 5. Execute até o final para treinar, avaliar e exportar o pacote do modelo.
 
-O notebook foi preparado para o trabalho colaborativo no Colab. O treinamento local pelo `train_model.py` é a alternativa mais simples para testar o Streamlit.
+O notebook usa **exatamente a mesma abordagem do `train_model.py`**: somente Random Forest, prevendo a variação (retorno) e reconstruindo o preço. O treinamento local pelo `train_model.py` é a alternativa mais simples para testar o Streamlit.
 
 ## 3. Usar o dataset real
 
@@ -57,18 +59,17 @@ O notebook foi preparado para o trabalho colaborativo no Colab. O treinamento lo
 python train_model.py --csv data/gold_price.csv --date-col Date --price-col Price
 ```
 
-Substitua `Date` e `Price` pelos nomes reais do seu arquivo. Salve o CSV real como `data/gold_price.csv` (sobrescrevendo o demonstrativo) ou informe outro caminho no comando.
+Substitua `Date` e `Price` pelos nomes reais do seu arquivo. Salve o CSV real como `data/gold_price.csv` (sobrescrevendo o demonstrativo) ou informe outro caminho no comando. A leitura de datas é robusta: datas em formato ISO (`AAAA-MM-DD`) e em formato `DD/MM/AAAA` são tratadas corretamente.
 
 Fonte sugerida para pesquisa: https://www.kaggle.com/datasets/lbronchal/gold-and-silver-prices-dataset
 
 ## 4. O que o projeto faz
 
 - Limpa datas e preços, remove duplicatas e ordena cronologicamente.
-- Cria variáveis defasadas (lags), médias móveis, volatilidade e variação percentual.
-- Define como alvo o próximo preço observado.
+- Cria features estacionárias a partir do **retorno** diário: retornos defasados, médias de retorno, volatilidade e distância relativa à média móvel.
+- Define como alvo a **variação (retorno) do próximo dia** e reconstrói o preço (`preço_amanhã = preço_hoje × (1 + variação)`).
 - Separa os dados cronologicamente: 80% treino e 20% teste.
-- Compara Decision Tree, Random Forest e HistGradientBoosting com `TimeSeriesSplit`.
-- Seleciona o menor MAE médio na validação temporal.
+- Usa **somente o Random Forest**; o nível de regularização (profundidade da árvore e tamanho mínimo da folha) é escolhido **automaticamente por validação cruzada temporal** (`TimeSeriesSplit`, erro medido na escala de preço), evitando overfitting. O teste não é usado nessa escolha.
 - Avalia no teste com MAE, MSE, RMSE e R².
 - Compara com baseline ingênuo (próximo preço igual ao último observado).
 - Salva o modelo e os resultados na pasta `models/`.
@@ -93,6 +94,8 @@ gold-forecast/
 ## 6. Interpretação e limitações
 
 MAE, MSE e RMSE são medidas de erro (menor é melhor). R² mais próximo de 1 tende a indicar melhor ajuste, mas pode ser negativo. Compare sempre com o baseline: se o modelo não o superar, não afirme que trouxe ganho preditivo.
+
+**Por que prever a variação, e não o nível do preço?** Modelos baseados em árvore (como o Random Forest) não extrapolam: só devolvem valores dentro da faixa observada no treino. Numa série com tendência, o período de teste fica acima dessa faixa e o modelo "trava" num patamar, o que produz R² negativo. Prevendo a variação (grandeza aproximadamente estacionária) e reconstruindo o preço, o modelo generaliza para qualquer nível.
 
 A avaliação no teste é de um passo à frente, usando observações anteriores já conhecidas. O dashboard faz previsão recursiva de vários passos, portanto a incerteza tende a crescer com o horizonte. As datas futuras são dias úteis de segunda a sexta, sem calendário específico de feriados.
 
